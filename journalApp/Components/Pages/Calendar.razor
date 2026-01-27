@@ -1,0 +1,200 @@
+﻿@page "/calendar"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<h3>Calendar View</h3>
+
+<div style="max-width:900px; margin:0 auto;">
+    <!-- Month/Year Selector -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding:16px; background:#f5f5f5; border-radius:8px;">
+        <button style="padding:8px 16px;" @onclick="PreviousMonth">
+            ← Previous
+        </button>
+
+        <h4 style="margin:0;">
+            @currentDate.ToString("MMMM yyyy")
+        </h4>
+
+        <button style="padding:8px 16px;" @onclick="NextMonth">
+            Next →
+        </button>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-bottom:24px;">
+        <!-- Day Headers -->
+        @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+        {
+            <div style="text-align:center; font-weight:bold; padding:12px; background:#e3f2fd; border-radius:4px;">
+                @day
+            </div>
+        }
+
+        <!-- Empty cells before month starts -->
+        @for (int i = 0; i < GetStartDayOfWeek(); i++)
+        {
+            <div style="padding:12px; background:#fafafa; border-radius:4px; min-height:80px;"></div>
+        }
+
+        <!-- Days of month -->
+        @for (int day = 1; day <= GetDaysInMonth(); day++)
+        {
+            var currentDay = day; // Capture for lambda
+            var date = new DateOnly(currentDate.Year, currentDate.Month, currentDay);
+            var hasEntry = entriesThisMonth.ContainsKey(date);
+            var isToday = date == DateOnly.FromDateTime(DateTime.Now);
+
+            <div style="@GetDayStyle(hasEntry, isToday)"
+                 @onclick="() => NavigateToDate(date)">
+
+                <div style="font-size:1.1em; font-weight:bold; margin-bottom:4px;">
+                    @currentDay
+                </div>
+
+                @if (hasEntry)
+                {
+                    var entry = entriesThisMonth[date];
+                    <div style="margin-top:8px;">
+                        <div style="font-size:0.85em; font-weight:500; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            @entry.Title
+                        </div>
+                        <div style="font-size:0.75em; background:rgba(255,255,255,0.7); padding:2px 6px; border-radius:8px; display:inline-block;">
+                            @entry.PrimaryMood
+                        </div>
+                    </div>
+                }
+                else if (date < DateOnly.FromDateTime(DateTime.Now))
+                {
+                    <div style="font-size:0.75em; color:#999; margin-top:8px;">
+                        No entry
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex; gap:20px; justify-content:center; padding:16px; background:#f9f9f9; border-radius:8px; font-size:0.9em;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:20px; height:20px; background:#4caf50; border-radius:4px;"></div>
+            <span>Has Entry</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:20px; height:20px; background:#2196f3; border:2px solid #1976d2; border-radius:4px;"></div>
+            <span>Today</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:20px; height:20px; background:#fff; border:1px solid #ddd; border-radius:4px;"></div>
+            <span>No Entry</span>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="text-align:center; margin-top:24px;">
+        <button style="padding:12px 24px; font-size:1em;" @onclick='() => Navigation.NavigateTo("/today")'>
+            Go to Today's Entry
+        </button>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.7); color:white; padding:20px; border-radius:8px;">
+        Loading...
+    </div>
+}
+
+@code {
+    private DateTime currentDate = DateTime.Now;
+    private Dictionary<DateOnly, JournalEntry> entriesThisMonth = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMonthEntriesAsync();
+    }
+
+    private async Task LoadMonthEntriesAsync()
+    {
+        try
+        {
+            loading = true;
+            entriesThisMonth.Clear();
+
+            // Load entries for the current month
+            // We'll fetch more than needed and filter
+            var allEntries = await JournalService.GetRecentAsync(1, 100);
+
+            var firstDay = new DateOnly(currentDate.Year, currentDate.Month, 1);
+            var lastDay = new DateOnly(currentDate.Year, currentDate.Month, GetDaysInMonth());
+
+            foreach (var entry in allEntries)
+            {
+                if (entry.EntryDate >= firstDay && entry.EntryDate <= lastDay)
+                {
+                    entriesThisMonth[entry.EntryDate] = entry;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading calendar: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task PreviousMonth()
+    {
+        currentDate = currentDate.AddMonths(-1);
+        await LoadMonthEntriesAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        currentDate = currentDate.AddMonths(1);
+        await LoadMonthEntriesAsync();
+    }
+
+    private void NavigateToDate(DateOnly date)
+    {
+        Navigation.NavigateTo($"/edit/{date:yyyy-MM-dd}");
+    }
+
+    private int GetDaysInMonth()
+    {
+        return DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
+    }
+
+    private int GetStartDayOfWeek()
+    {
+        var firstDay = new DateTime(currentDate.Year, currentDate.Month, 1);
+        return (int)firstDay.DayOfWeek;
+    }
+
+    private string GetDayStyle(bool hasEntry, bool isToday)
+    {
+        var baseStyle = "padding:12px; border-radius:8px; min-height:80px; cursor:pointer; transition:all 0.2s;";
+
+        if (isToday && hasEntry)
+        {
+            return baseStyle + " background:#4caf50; color:white; border:3px solid #2e7d32;";
+        }
+        else if (isToday)
+        {
+            return baseStyle + " background:#e3f2fd; border:3px solid #1976d2;";
+        }
+        else if (hasEntry)
+        {
+            return baseStyle + " background:#4caf50; color:white; box-shadow:0 2px 4px rgba(0,0,0,0.1);";
+        }
+        else
+        {
+            return baseStyle + " background:white; border:1px solid #ddd;";
+        }
+    }
+}

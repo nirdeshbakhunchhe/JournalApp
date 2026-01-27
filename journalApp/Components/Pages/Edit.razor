@@ -1,0 +1,321 @@
+﻿@page "/edit/{DateParam}"
+@using System
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@using JournalApp.Models
+@using JournalApp.Services
+@using Markdig
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<div style="margin-bottom:20px;">
+    <button style="padding:8px 16px;" @onclick='() => Navigation.NavigateTo("/recent")'>
+        ← Back to Recent Entries
+    </button>
+</div>
+
+<h3>Journal Entry - @entryDate.ToString("MMMM dd, yyyy")</h3>
+
+@if (loading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <!-- LEFT: Editor -->
+        <div style="flex:1; min-width:340px;">
+            <label><b>Title</b></label><br />
+            <input style="width:100%; padding:8px;" @bind="entry.Title" />
+
+            <br /><br />
+
+            <!-- Mood Tracking -->
+            <label><b>Primary Mood (Required)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.PrimaryMood">
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Secondary Mood 1 (Optional)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.SecondaryMood1">
+                <option value="">(None)</option>
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Secondary Mood 2 (Optional)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.SecondaryMood2">
+                <option value="">(None)</option>
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Category</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.Category">
+                <option value="">(None)</option>
+                @foreach (var c in Categories)
+                {
+                    <option value="@c">@c</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <!-- Tagging -->
+            <label><b>Tags</b></label>
+            <div style="border:1px solid #ddd; padding:10px; border-radius:6px; max-height:160px; overflow:auto;">
+                @foreach (var tag in PredefinedTags)
+                {
+                    <div style="margin-bottom:4px;">
+                        <input type="checkbox"
+                               checked="@selectedTags.Contains(tag)"
+                               @onchange="e => ToggleTag(tag, (bool)e.Value!)" />
+                        <span style="margin-left:6px;">@tag</span>
+                    </div>
+                }
+            </div>
+
+            <br />
+
+            <input placeholder="Add custom tag"
+                   style="padding:6px; width:70%;"
+                   @bind="newTag" />
+            <button style="margin-left:6px; padding:6px 10px;" @onclick="AddCustomTag">Add</button>
+
+            @if (selectedTags.Count > 0)
+            {
+                <p style="margin-top:8px;">
+                    <b>Selected:</b> @string.Join(", ", selectedTags)
+                </p>
+            }
+
+            <br />
+
+            <!-- Markdown -->
+            <label><b>Write (Markdown)</b></label><br />
+            <textarea style="width:100%; height:220px; padding:8px;"
+                      @bind="entry.Content"></textarea>
+
+            <br /><br />
+
+            <button style="padding:10px 14px;" @onclick="SaveAsync">Save</button>
+            <button style="padding:10px 14px; margin-left:8px;" @onclick="DeleteAsync">Delete</button>
+
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <p style="margin-top:10px; color: @(message.Contains("Error") ? "red" : "green");">@message</p>
+            }
+
+            <p style="margin-top:14px; font-size:0.9em; color:#666;">
+                <b>Date:</b> @entry.EntryDate.ToString("yyyy-MM-dd")
+                @if (entry.CreatedAt != default)
+                {
+                    <span> | <b>Created:</b> @entry.CreatedAt.ToString("g")</span>
+                }
+                @if (entry.UpdatedAt != default)
+                {
+                    <span> | <b>Updated:</b> @entry.UpdatedAt.ToString("g")</span>
+                }
+            </p>
+        </div>
+
+        <!-- RIGHT: Preview -->
+        <div style="flex:1; min-width:340px;">
+            <h4>Preview</h4>
+            <div style="border:1px solid #ccc; padding:12px; min-height:220px; background:#f9f9f9;">
+                @((MarkupString)MarkdownToHtml(entry.Content))
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string DateParam { get; set; } = "";
+
+    private JournalEntry entry = new();
+    private DateOnly entryDate;
+    private bool loading = true;
+    private string message = "";
+
+    // Mood list
+    private readonly string[] AllMoods =
+    {
+        "Happy", "Excited", "Relaxed", "Grateful", "Confident",
+        "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored",
+        "Sad", "Angry", "Stressed", "Lonely", "Anxious"
+    };
+
+    private readonly string[] Categories =
+    {
+        "Work", "Health", "Travel", "Fitness", "Personal",
+        "Study", "Family", "Friends", "Reflection"
+    };
+
+    private readonly string[] PredefinedTags =
+    {
+        "Work", "Career", "Studies", "Family", "Friends", "Relationships",
+        "Health", "Fitness", "Personal Growth", "Self-care", "Hobbies",
+        "Travel", "Nature", "Finance", "Spirituality", "Birthday",
+        "Holiday", "Vacation", "Celebration", "Exercise", "Reading",
+        "Writing", "Cooking", "Meditation", "Yoga", "Music", "Shopping",
+        "Parenting", "Projects", "Planning", "Reflection"
+    };
+
+    private List<string> selectedTags = new();
+    private string newTag = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Parse date from URL parameter
+            if (DateOnly.TryParse(DateParam, out var date))
+            {
+                entryDate = date;
+            }
+            else
+            {
+                // Invalid date, redirect to recent
+                Navigation.NavigateTo("/recent");
+                return;
+            }
+
+            var existing = await JournalService.GetByDateAsync(entryDate);
+
+            entry = existing ?? new JournalEntry
+            {
+                EntryDate = entryDate,
+                PrimaryMood = "Calm"
+            };
+
+            // Load tags
+            if (entry.Tags != null && entry.Tags.Count > 0)
+            {
+                selectedTags = entry.Tags.Select(t => t.Name).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error loading entry: {ex.Message}";
+            Console.WriteLine($"Error in OnInitializedAsync: {ex}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ToggleTag(string tag, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!selectedTags.Contains(tag))
+                selectedTags.Add(tag);
+        }
+        else
+        {
+            selectedTags.Remove(tag);
+        }
+    }
+
+    private void AddCustomTag()
+    {
+        var clean = (newTag ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(clean))
+            return;
+
+        var normalized = char.ToUpper(clean[0]) + clean.Substring(1);
+
+        if (!selectedTags.Contains(normalized))
+            selectedTags.Add(normalized);
+
+        newTag = "";
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            message = "";
+
+            if (string.IsNullOrWhiteSpace(entry.Title))
+            {
+                message = "Error: Title is required.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.PrimaryMood))
+            {
+                message = "Error: Primary mood is required.";
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.SecondaryMood1) &&
+                entry.SecondaryMood1 == entry.SecondaryMood2)
+            {
+                message = "Error: Secondary moods cannot be the same.";
+                return;
+            }
+
+            var savedEntry = await JournalService.UpsertAsync(entry);
+            await JournalService.UpdateTagsAsync(savedEntry, selectedTags);
+
+            entry = await JournalService.GetByDateAsync(entry.EntryDate) ?? savedEntry;
+
+            message = "Saved successfully ✅";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            Console.WriteLine($"Error saving entry: {ex}");
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(entry.Title) || !string.IsNullOrEmpty(entry.Content))
+            {
+                var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this entry?");
+                if (!confirmed) return;
+            }
+
+            await JournalService.DeleteByDateAsync(entry.EntryDate);
+            Navigation.NavigateTo("/recent");
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            Console.WriteLine($"Error deleting entry: {ex}");
+        }
+    }
+
+    private static string MarkdownToHtml(string md)
+    {
+        if (string.IsNullOrEmpty(md)) return "";
+
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
+
+        return Markdig.Markdown.ToHtml(md, pipeline);
+    }
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
+}

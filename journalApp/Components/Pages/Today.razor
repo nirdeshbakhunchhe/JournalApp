@@ -1,0 +1,298 @@
+﻿@page "/today"
+@using System
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@using JournalApp.Models
+@using JournalApp.Services
+@using Markdig
+@inject JournalService JournalService
+
+<h3>Today’s Journal</h3>
+
+@if (loading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <!-- LEFT: Editor -->
+        <div style="flex:1; min-width:340px;">
+            <label><b>Title</b></label><br />
+            <input style="width:100%; padding:8px;" @bind="entry.Title" />
+
+            <br /><br />
+
+            <!-- Mood Tracking -->
+            <label><b>Primary Mood (Required)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.PrimaryMood">
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Secondary Mood 1 (Optional)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.SecondaryMood1">
+                <option value="">(None)</option>
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Secondary Mood 2 (Optional)</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.SecondaryMood2">
+                <option value="">(None)</option>
+                @foreach (var m in AllMoods)
+                {
+                    <option value="@m">@m</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <label><b>Category</b></label><br />
+            <select style="width:100%; padding:8px;" @bind="entry.Category">
+                <option value="">(None)</option>
+                @foreach (var c in Categories)
+                {
+                    <option value="@c">@c</option>
+                }
+            </select>
+
+            <br /><br />
+
+            <!-- Tagging -->
+            <label><b>Tags</b></label>
+            <div style="border:1px solid #ddd; padding:10px; border-radius:6px; max-height:160px; overflow:auto;">
+                @foreach (var tag in PredefinedTags)
+                {
+                    <div style="margin-bottom:4px;">
+                        <input type="checkbox"
+                               checked="@selectedTags.Contains(tag)"
+                               @onchange="e => ToggleTag(tag, (bool)e.Value!)" />
+                        <span style="margin-left:6px;">@tag</span>
+                    </div>
+                }
+            </div>
+
+            <br />
+
+            <input placeholder="Add custom tag"
+                   style="padding:6px; width:70%;"
+                   @bind="newTag" />
+            <button style="margin-left:6px; padding:6px 10px;" @onclick="AddCustomTag">Add</button>
+
+            @if (selectedTags.Count > 0)
+            {
+                <p style="margin-top:8px;">
+                    <b>Selected:</b> @string.Join(", ", selectedTags)
+                </p>
+            }
+
+            <br />
+
+            <!-- Markdown -->
+            <label><b>Write (Markdown)</b></label><br />
+            <textarea style="width:100%; height:220px; padding:8px;"
+                      @bind="entry.Content"></textarea>
+
+            <br /><br />
+
+            <button style="padding:10px 14px;" @onclick="SaveAsync">Save</button>
+            <button style="padding:10px 14px; margin-left:8px;" @onclick="DeleteAsync">Delete</button>
+
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <p style="margin-top:10px;">@message</p>
+            }
+
+            <p style="margin-top:14px; font-size:0.9em; color:#666;">
+                <b>Date:</b> @entry.EntryDate.ToString("yyyy-MM-dd")
+                @if (entry.CreatedAt != default)
+                {
+                    <span> | <b>Created:</b> @entry.CreatedAt</span>
+                }
+                @if (entry.UpdatedAt != default)
+                {
+                    <span> | <b>Updated:</b> @entry.UpdatedAt</span>
+                }
+            </p>
+        </div>
+
+        <!-- RIGHT: Preview -->
+        <div style="flex:1; min-width:340px;">
+            <h4>Preview</h4>
+            <div style="border:1px solid #ccc; padding:12px; min-height:220px;">
+                @((MarkupString)MarkdownToHtml(entry.Content))
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private JournalEntry entry = new();
+    private bool loading = true;
+    private string message = "";
+
+    // Mood list (based on coursework examples)
+    private readonly string[] AllMoods =
+    {
+        // Positive
+        "Happy", "Excited", "Relaxed", "Grateful", "Confident",
+        // Neutral
+        "Calm", "Thoughtful", "Curious", "Nostalgic", "Bored",
+        // Negative
+        "Sad", "Angry", "Stressed", "Lonely", "Anxious"
+    };
+
+    private readonly string[] Categories =
+    {
+        "Work", "Health", "Travel", "Fitness", "Personal",
+        "Study", "Family", "Friends", "Reflection"
+    };
+
+    // Tags (predefined + custom)
+    private readonly string[] PredefinedTags =
+    {
+        "Work", "Career", "Studies", "Family", "Friends", "Relationships",
+        "Health", "Fitness", "Personal Growth", "Self-care", "Hobbies",
+        "Travel", "Nature", "Finance", "Spirituality", "Birthday",
+        "Holiday", "Vacation", "Celebration", "Exercise", "Reading",
+        "Writing", "Cooking", "Meditation", "Yoga", "Music", "Shopping",
+        "Parenting", "Projects", "Planning", "Reflection"
+    };
+
+    private List<string> selectedTags = new();
+    private string newTag = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var existing = await JournalService.GetByDateAsync(today);
+
+        entry = existing ?? new JournalEntry
+        {
+            EntryDate = today,
+            PrimaryMood = "Calm"
+        };
+
+        // Load tags from DB into selected list
+        if (entry.Tags != null && entry.Tags.Count > 0)
+        {
+            selectedTags = entry.Tags.Select(t => t.Name).ToList();
+        }
+
+        loading = false;
+    }
+
+    private void ToggleTag(string tag, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!selectedTags.Contains(tag))
+                selectedTags.Add(tag);
+        }
+        else
+        {
+            selectedTags.Remove(tag);
+        }
+    }
+
+    private void AddCustomTag()
+    {
+        var clean = (newTag ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(clean))
+            return;
+
+        // Normalize: capitalize first letter, keep rest as typed
+        var normalized = char.ToUpper(clean[0]) + clean.Substring(1);
+
+        if (!selectedTags.Contains(normalized))
+            selectedTags.Add(normalized);
+
+        newTag = "";
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            message = "";
+
+            if (string.IsNullOrWhiteSpace(entry.Title))
+            {
+                message = "Title is required.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.PrimaryMood))
+            {
+                message = "Primary mood is required.";
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.SecondaryMood1) &&
+                entry.SecondaryMood1 == entry.SecondaryMood2)
+            {
+                message = "Secondary moods cannot be the same.";
+                return;
+            }
+
+            // Save entry first (create/update)
+            var savedEntry = await JournalService.UpsertAsync(entry);
+
+            // Save tags (requires JournalService.UpdateTagsAsync method)
+            await JournalService.UpdateTagsAsync(savedEntry, selectedTags);
+
+            // Refresh entry (optional but keeps IDs/timestamps updated on screen)
+            entry = await JournalService.GetByDateAsync(entry.EntryDate) ?? savedEntry;
+
+            message = "Saved successfully ✅";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            await JournalService.DeleteByDateAsync(entry.EntryDate);
+
+            var keepDate = entry.EntryDate;
+            entry = new JournalEntry
+            {
+                EntryDate = keepDate,
+                PrimaryMood = "Calm"
+            };
+            selectedTags.Clear();
+
+            message = "Deleted successfully ✅";
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+        }
+    }
+
+    // Markdown -> HTML using Markdig
+    private static string MarkdownToHtml(string md)
+    {
+        if (string.IsNullOrEmpty(md)) return "";
+
+        // Configure Markdig pipeline for safety and features
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()  // Enables tables, task lists, etc.
+            .Build();
+
+        return Markdig.Markdown.ToHtml(md, pipeline);
+    }
+    }
