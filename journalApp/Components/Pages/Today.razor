@@ -4,7 +4,10 @@
 @using Microsoft.AspNetCore.Components
 @using JournalApp.Models
 @using JournalApp.Services
+<<<<<<< HEAD
 @using Markdig
+=======
+>>>>>>> dbffb4be25b29fc69ffe5f265ab15c6bf456530d
 @inject JournalService JournalService
 
 <h3>Today’s Journal</h3>
@@ -129,7 +132,11 @@ else
         <div style="flex:1; min-width:340px;">
             <h4>Preview</h4>
             <div style="border:1px solid #ccc; padding:12px; min-height:220px;">
+<<<<<<< HEAD
                 @((MarkupString)MarkdownToHtml(entry.Content))
+=======
+                @((MarkupString)SimpleMarkdownToHtml(entry.Content))
+>>>>>>> dbffb4be25b29fc69ffe5f265ab15c6bf456530d
             </div>
         </div>
     </div>
@@ -283,6 +290,7 @@ else
         }
     }
 
+<<<<<<< HEAD
     // Markdown -> HTML using Markdig
     private static string MarkdownToHtml(string md)
     {
@@ -296,3 +304,22 @@ else
         return Markdig.Markdown.ToHtml(md, pipeline);
     }
     }
+=======
+    // Basic Markdown -> HTML (safe minimal preview for coursework)
+    private static string SimpleMarkdownToHtml(string md)
+    {
+        if (string.IsNullOrEmpty(md)) return "";
+
+        // escape HTML
+        var html = md
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;");
+
+        // simple replacements (optional)
+        html = html.Replace("\n", "<br/>");
+
+        return html;
+    }
+}
+>>>>>>> dbffb4be25b29fc69ffe5f265ab15c6bf456530d

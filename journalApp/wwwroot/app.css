@@ -99,6 +99,7 @@ h1:focus {
         padding-left: env(safe-area-inset-left);
     }
 }
+<<<<<<< HEAD
 .journal-list {
     list-style: none;
     padding: 0;
@@ -115,3 +116,5 @@ h1:focus {
         .journal-list li:hover {
             background: #e0e0e0;
         }
+=======
+>>>>>>> dbffb4be25b29fc69ffe5f265ab15c6bf456530d
