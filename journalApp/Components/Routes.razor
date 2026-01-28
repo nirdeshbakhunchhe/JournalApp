@@ -1,6 +1,37 @@
-﻿<Router AppAssembly="typeof(MauiProgram).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿@namespace JournalApp.Components
+@using JournalApp.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<Router AppAssembly="typeof(MauiProgram).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        @{
+            var isLoginPage = routeData.PageType.FullName?.Contains("Login") == true;
+
+            if (!isLoginPage && !AuthService.IsAuthenticated)
+            {
+                Navigation.NavigateTo("/login", forceLoad: true);
+            }
+        }
+
+        <RouteView RouteData="routeData" DefaultLayout="@GetLayout(routeData)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Components.Layout.MainLayout)">
+            <p>Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
 </Router>
+
+@code {
+    private Type? GetLayout(RouteData routeData)
+    {
+        // Login page gets no layout, everything else gets layout
+        if (routeData.PageType.FullName?.Contains("Login") == true)
+        {
+            return null;
+        }
+        return typeof(Components.Layout.MainLayout);
+    }
+}

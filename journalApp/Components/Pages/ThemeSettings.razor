@@ -1,0 +1,99 @@
+@page "/theme-settings"
+@using JournalApp.Services
+@inject ThemeService ThemeService
+@inject NavigationManager Navigation
+
+<h1>Theme Customization</h1>
+
+<div style="max-width:900px; margin:20px auto;">
+    <p style="color: var(--secondary-color); font-size:1.05em; margin-bottom:30px;">
+        Choose your preferred theme to personalize your journal experience. Each theme includes carefully selected colors for optimal readability.
+    </p>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:40px;">
+        @foreach (var theme in ThemeService.AvailableThemes)
+        {
+            var isSelected = theme.Id == ThemeService.CurrentTheme;
+            <div @onclick="() => SelectTheme(theme.Id)"
+                 style="
+                    padding:20px;
+                    border-radius:12px;
+                    border:3px solid @(isSelected ? "var(--primary-color)" : "var(--border-color)");
+                    background:var(--sidebar-background);
+                    cursor:pointer;
+                    transition:all 0.3s ease;
+                    text-align:center;
+                    user-select:none;
+                    box-shadow:@(isSelected ? "0 4px 12px rgba(0,0,0,0.15)" : "none");
+                 ">
+                <!-- Color Palette Display -->
+                <div style="display:flex; gap:8px; margin-bottom:16px; justify-content:center; align-items:center;">
+                    <div style="width:36px; height:36px; border-radius:6px; background:@theme.BgColor; border:2px solid var(--border-color); box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);"></div>
+                    <div style="width:36px; height:36px; border-radius:6px; background:@theme.PrimaryColor; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"></div>
+                    <div style="width:36px; height:36px; border-radius:6px; background:@theme.SecondaryColor; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"></div>
+                </div>
+                <div style="font-size:1em; font-weight:600; color:var(--text-color); margin-bottom:6px;">
+                    @theme.Name
+                </div>
+                <div style="font-size:0.85em; color:var(--secondary-color); margin-bottom:12px;">
+                    @theme.Mode.ToUpper() MODE
+                </div>
+                @if (isSelected)
+                {
+                    <div style="font-size:0.9em; color:var(--primary-color); font-weight:700; padding:6px 12px; background:var(--sidebar-background); border-radius:4px;">
+                        Active
+                    </div>
+                }
+                else
+                {
+                    <div style="font-size:0.9em; color:var(--secondary-color); padding:6px 12px; border:1px solid var(--border-color); border-radius:4px;">
+                        Select
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Current Theme Info -->
+    <div style="background:var(--sidebar-background); padding:20px; border-radius:12px; border:2px solid var(--border-color); margin-bottom:20px;">
+        <div style="font-size:1.1em; font-weight:600; color:var(--text-color); margin-bottom:8px;">
+            Currently Using
+        </div>
+        <div style="font-size:1.4em; font-weight:700; color:var(--primary-color);">
+            @(ThemeService.GetCurrentThemeInfo()?.Name ?? "Unknown")
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div style="text-align:center;">
+        <button @onclick='() => Navigation.NavigateTo("/dashboard")'
+                style="
+                    padding:12px 32px; 
+                    background:var(--secondary-color); 
+                    color:white; 
+                    border:none; 
+                    border-radius:6px; 
+                    cursor:pointer; 
+                    font-size:1em;
+                    font-weight:500;
+                    transition:opacity 0.3s ease;
+                "
+                onmouseover="this.style.opacity='0.8'"
+                onmouseout="this.style.opacity='1'">
+            Back
+        </button>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ThemeService.InitializeAsync();
+    }
+
+    private async Task SelectTheme(string themeId)
+    {
+        await ThemeService.SetThemeAsync(themeId);
+        StateHasChanged();
+    }
+}

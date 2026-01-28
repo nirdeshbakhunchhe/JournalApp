@@ -1,0 +1,225 @@
+@page "/security-settings"
+@using JournalApp.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h1>Security Settings</h1>
+
+<div style="max-width:700px; margin:20px auto;">
+    <p style="color: var(--secondary-color); font-size:1.05em; margin-bottom:30px;">
+        Manage your PIN and app security settings to keep your journal entries private and secure.
+    </p>
+
+    <!-- Change PIN Section -->
+    <div style="background:var(--background-color); border:2px solid var(--border-color); border-radius:12px; padding:28px; margin-bottom:24px;">
+        <h2 style="margin:0 0 20px 0; color:var(--primary-color); font-size:1.3em;">Change PIN</h2>
+
+        <form @onsubmit="ChangePin">
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:8px; font-size:1em; font-weight:600; color:var(--text-color);">Current PIN</label>
+                <input type="password"
+                       @bind="currentPin"
+                       maxlength="6"
+                       placeholder="Enter current PIN"
+                       style="
+                           width:100%; 
+                           padding:12px 14px; 
+                           border:2px solid var(--border-color); 
+                           border-radius:8px; 
+                           margin-bottom:4px; 
+                           background:var(--background-color); 
+                           color:var(--text-color);
+                           font-size:1em;
+                           transition:border-color 0.3s ease;
+                       "
+                       onfocus="this.style.borderColor='var(--primary-color)'"
+                       onblur="this.style.borderColor='var(--border-color)'" />
+                <small style="color:var(--secondary-color); font-size:0.85em;">Your current 4-6 digit PIN</small>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:8px; font-size:1em; font-weight:600; color:var(--text-color);">New PIN</label>
+                <input type="password"
+                       @bind="newPin"
+                       maxlength="6"
+                       placeholder="Enter new PIN (4-6 digits)"
+                       style="
+                           width:100%; 
+                           padding:12px 14px; 
+                           border:2px solid var(--border-color); 
+                           border-radius:8px; 
+                           margin-bottom:4px; 
+                           background:var(--background-color); 
+                           color:var(--text-color);
+                           font-size:1em;
+                           transition:border-color 0.3s ease;
+                       "
+                       onfocus="this.style.borderColor='var(--primary-color)'"
+                       onblur="this.style.borderColor='var(--border-color)'" />
+                <small style="color:var(--secondary-color); font-size:0.85em;">Must be 4-6 digits</small>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:8px; font-size:1em; font-weight:600; color:var(--text-color);">Confirm New PIN</label>
+                <input type="password"
+                       @bind="confirmNewPin"
+                       maxlength="6"
+                       placeholder="Re-enter new PIN"
+                       style="
+                           width:100%; 
+                           padding:12px 14px; 
+                           border:2px solid var(--border-color); 
+                           border-radius:8px; 
+                           margin-bottom:4px; 
+                           background:var(--background-color); 
+                           color:var(--text-color);
+                           font-size:1em;
+                           transition:border-color 0.3s ease;
+                       "
+                       onfocus="this.style.borderColor='var(--primary-color)'"
+                       onblur="this.style.borderColor='var(--border-color)'" />
+                <small style="color:var(--secondary-color); font-size:0.85em;">Must match the new PIN</small>
+            </div>
+
+            <button type="submit"
+                    style="
+                        width:100%; 
+                        padding:12px 20px; 
+                        background:var(--primary-color); 
+                        color:white; 
+                        border:none; 
+                        border-radius:8px; 
+                        cursor:pointer; 
+                        font-size:1em;
+                        font-weight:600;
+                        transition:opacity 0.3s ease;
+                    "
+                    onmouseover="this.style.opacity='0.9'"
+                    onmouseout="this.style.opacity='1'">
+                Update PIN
+            </button>
+        </form>
+
+        @if (!string.IsNullOrEmpty(changeMessage))
+        {
+            <div style="
+                margin-top:16px; 
+                padding:12px 16px; 
+                border-radius:8px;
+                font-weight:500;
+                color:@(changeMessage.Contains("success") ? "#4caf50" : "#f44336");
+                background:@(changeMessage.Contains("success") ? "rgba(76, 175, 80, 0.1)" : "rgba(244, 67, 54, 0.1)");
+                border:1px solid @(changeMessage.Contains("success") ? "#4caf50" : "#f44336");
+            ">
+                @changeMessage
+            </div>
+        }
+    </div>
+
+        <!-- Lock App Section -->
+        <div style="background:var(--background-color); border:2px solid var(--border-color); border-radius:12px; padding:28px; margin-bottom:24px;">
+            <h2 style="margin:0 0 12px 0; color:var(--primary-color); font-size:1.3em;">Lock App</h2>
+            <p style="color:var(--secondary-color); margin-bottom:16px; font-size:0.95em;">
+                Immediately lock the app and return to the login screen. You'll need to enter your PIN to access your journal again.
+            </p>
+
+            <button @onclick="LockApp"
+                    style="
+                        padding:12px 24px; 
+                        background:#ff6f00; 
+                        color:white; 
+                        border:none; 
+                        border-radius:8px; 
+                        cursor:pointer; 
+                        font-size:1em;
+                        font-weight:600;
+                        transition:opacity 0.3s ease;
+                    "
+                    onmouseover="this.style.opacity='0.9'"
+                    onmouseout="this.style.opacity='1'">
+                Lock Now
+            </button>
+        </div>
+
+        <!-- Back Button -->
+        <div style="text-align:center;">
+            <button @onclick='() => Navigation.NavigateTo("/dashboard")'
+                    style="
+                        padding:12px 32px; 
+                        background:var(--secondary-color); 
+                        color:white; 
+                        border:none; 
+                        border-radius:6px; 
+                        cursor:pointer; 
+                        font-size:1em;
+                        font-weight:500;
+                        transition:opacity 0.3s ease;
+                    "
+                    onmouseover="this.style.opacity='0.8'"
+                    onmouseout="this.style.opacity='1'">
+                Back
+            </button>
+        </div>
+</div>
+
+@code {
+    private string currentPin = "";
+    private string newPin = "";
+    private string confirmNewPin = "";
+    private string changeMessage = "";
+
+    private void ChangePin()
+    {
+        changeMessage = "";
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(currentPin))
+        {
+            changeMessage = "? Please enter your current PIN";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newPin) || newPin.Length < 4)
+        {
+            changeMessage = "? New PIN must be at least 4 digits";
+            return;
+        }
+
+        if (newPin != confirmNewPin)
+        {
+            changeMessage = "? New PINs do not match";
+            return;
+        }
+
+        if (currentPin == newPin)
+        {
+            changeMessage = "? New PIN must be different from current PIN";
+            return;
+        }
+
+        try
+        {
+            if (AuthService.ChangePin(currentPin, newPin))
+            {
+                changeMessage = "? PIN changed successfully!";
+                currentPin = "";
+                newPin = "";
+                confirmNewPin = "";
+            }
+            else
+            {
+                changeMessage = "? Current PIN is incorrect";
+            }
+        }
+        catch (Exception ex)
+        {
+            changeMessage = $"? Error: {ex.Message}";
+        }
+    }
+
+    private void LockApp()
+    {
+        AuthService.Lock();
+        Navigation.NavigateTo("/login");
+    }
+}

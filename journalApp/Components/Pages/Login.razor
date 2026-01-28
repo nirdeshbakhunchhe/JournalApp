@@ -1,0 +1,222 @@
+﻿@page "/login"
+@using JournalApp.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<div style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f5f5f5;">
+    <div style="background:white; padding:40px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); max-width:400px; width:100%;">
+        <div style="text-align:center; margin-bottom:32px;">
+            <h2 style="margin:0 0 8px 0; color:#333;">🔒 Journal App</h2>
+            <p style="color:#666; margin:0;">@GetHeaderText()</p>
+        </div>
+
+        @if (isSetupMode)
+        {
+            <!-- PIN Setup Mode -->
+            <div>
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Create Your PIN</label>
+                <input type="password"
+                       @bind="pinInput"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKeyPress"
+                       maxlength="6"
+                       placeholder="Enter 4-6 digit PIN"
+                       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:6px; font-size:1.1em; text-align:center; letter-spacing:4px;" />
+
+                <label style="display:block; margin:16px 0 8px 0; font-weight:500;">Confirm Your PIN</label>
+                <input type="password"
+                       @bind="confirmPin"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKeyPress"
+                       maxlength="6"
+                       placeholder="Re-enter PIN"
+                       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:6px; font-size:1.1em; text-align:center; letter-spacing:4px;" />
+
+                <button @onclick="SetupPin"
+                        disabled="@(!CanSetup())"
+                        style="width:100%; padding:14px; margin-top:24px; background:#4caf50; color:white; border:none; border-radius:6px; font-size:1em; font-weight:500; cursor:pointer; opacity:@(CanSetup() ? "1" : "0.5");">
+                    Create PIN
+                </button>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <p style="color:#f44336; text-align:center; margin-top:16px; font-size:0.9em;">@errorMessage</p>
+                }
+
+                <p style="text-align:center; margin-top:24px; color:#666; font-size:0.85em;">
+                    💡 Choose a PIN you'll remember. You'll need it every time you open the app.
+                </p>
+            </div>
+        }
+        else
+        {
+            <!-- Login Mode -->
+            <div>
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Enter Your PIN</label>
+                <input type="password"
+                       @bind="pinInput"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKeyPress"
+                       maxlength="6"
+                       placeholder="••••••"
+                       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:6px; font-size:1.1em; text-align:center; letter-spacing:4px;" />
+
+                <button @onclick="LoginAsync"
+                        disabled="@string.IsNullOrWhiteSpace(pinInput)"
+                        style="width:100%; padding:14px; margin-top:24px; background:#2196f3; color:white; border:none; border-radius:6px; font-size:1em; font-weight:500; cursor:pointer; opacity:@(string.IsNullOrWhiteSpace(pinInput) ? "0.5" : "1");">
+                    Unlock
+                </button>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <p style="color:#f44336; text-align:center; margin-top:16px; font-size:0.9em;">❌ @errorMessage</p>
+                }
+
+                @if (attemptCount > 0)
+                {
+                    <p style="text-align:center; margin-top:12px; color:#ff9800; font-size:0.85em;">
+                        Attempts: @attemptCount / 5
+                    </p>
+                }
+
+                @if (isLocked)
+                {
+                    <p style="text-align:center; margin-top:16px; color:#f44336; font-size:0.9em;">
+                        ⏱️ Too many attempts. Try again in @lockoutSeconds seconds.
+                    </p>
+                }
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private string pinInput = "";
+    private string confirmPin = "";
+    private string errorMessage = "";
+    private bool isSetupMode = false;
+    private int attemptCount = 0;
+    private bool isLocked = false;
+    private int lockoutSeconds = 30;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if PIN is already set up
+        isSetupMode = !AuthService.IsPinSetup();
+
+        // If already authenticated, redirect to today
+        if (AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/today");
+        }
+    }
+
+    private string GetHeaderText()
+    {
+        if (isSetupMode)
+            return "Welcome! Let's secure your journal.";
+        return "Enter your PIN to continue";
+    }
+
+    private bool CanSetup()
+    {
+        return !string.IsNullOrWhiteSpace(pinInput) &&
+               !string.IsNullOrWhiteSpace(confirmPin) &&
+               pinInput.Length >= 4 &&
+               confirmPin.Length >= 4;
+    }
+
+    private void SetupPin()
+    {
+        errorMessage = "";
+
+        if (pinInput.Length < 4)
+        {
+            errorMessage = "PIN must be at least 4 digits";
+            return;
+        }
+
+        if (pinInput != confirmPin)
+        {
+            errorMessage = "PINs do not match";
+            return;
+        }
+
+        try
+        {
+            AuthService.SetupPin(pinInput);
+            Navigation.NavigateTo("/today");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        if (isLocked)
+            return;
+
+        errorMessage = "";
+
+        try
+        {
+            if (AuthService.VerifyPin(pinInput))
+            {
+                // Success!
+                Navigation.NavigateTo("/today");
+            }
+            else
+            {
+                // Failed attempt
+                attemptCount++;
+                errorMessage = "Incorrect PIN";
+                pinInput = "";
+
+                // Lock after 5 failed attempts
+                if (attemptCount >= 5)
+                {
+                    isLocked = true;
+                    await StartLockoutTimer();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task StartLockoutTimer()
+    {
+        lockoutSeconds = 30;
+
+        while (lockoutSeconds > 0)
+        {
+            await Task.Delay(1000);
+            lockoutSeconds--;
+            StateHasChanged();
+        }
+
+        isLocked = false;
+        attemptCount = 0;
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (isSetupMode && CanSetup())
+            {
+                SetupPin();
+            }
+            else if (!isSetupMode && !string.IsNullOrWhiteSpace(pinInput))
+            {
+                await LoginAsync();
+            }
+        }
+    }
+}

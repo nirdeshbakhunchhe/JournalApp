@@ -1,4 +1,8 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using JournalApp.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">JournalApp</a>
     </div>
@@ -9,42 +13,62 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-<<<<<<< HEAD
             <NavLink class="nav-link" href="today" Match="NavLinkMatch.All">
                 <span class="oi oi-book" aria-hidden="true"></span> Today's Entry
             </NavLink>
         </div>
-
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="recent">
                 <span class="oi oi-list" aria-hidden="true"></span> Recent Entries
             </NavLink>
         </div>
-
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="search">
+                <span class="oi oi-magnifying-glass" aria-hidden="true"></span> Search
+            </NavLink>
+        </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="calendar">
                 <span class="oi oi-calendar" aria-hidden="true"></span> Calendar
             </NavLink>
         </div>
-=======
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="streaks">
+                <span class="oi oi-pulse" aria-hidden="true"></span> Streaks
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            <NavLink class="nav-link" href="dashboard">
+                <span class="oi oi-dashboard" aria-hidden="true"></span> Dashboard
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="export">
+                <span class="oi oi-data-transfer-download" aria-hidden="true"></span> Export PDF
             </NavLink>
         </div>
-        <NavLink class="nav-link" href="today" Match="NavLinkMatch.All">
-    <span class="oi oi-book" aria-hidden="true"></span> Today
-</NavLink>
-
->>>>>>> dbffb4be25b29fc69ffe5f265ab15c6bf456530d
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="theme-settings">
+                <span class="oi oi-brush" aria-hidden="true"></span> Theme
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="security-settings">
+                <span class="oi oi-shield" aria-hidden="true"></span> Security
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <a class="nav-link" href="#" @onclick="LockApp" @onclick:preventDefault>
+                <span class="oi oi-lock-locked" aria-hidden="true"></span> Lock App
+            </a>
+        </div>
     </nav>
 </div>
+
+@code {
+    private void LockApp()
+    {
+        AuthService.Lock();
+        Navigation.NavigateTo("/login");
+    }
+}

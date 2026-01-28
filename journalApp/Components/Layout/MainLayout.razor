@@ -1,6 +1,10 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject ThemeService ThemeService
+@using JournalApp.Services
+@using Microsoft.Maui.Storage
 
-<div class="page">
+<div class="page @ThemeService.CurrentTheme">
     <div class="sidebar">
         <NavMenu />
     </div>
@@ -11,7 +15,51 @@
         </div>
 
         <article class="content px-4">
-            @Body
+            @if (isLocked)
+            {
+                <p>Please unlock with your PIN.</p>
+            }
+            else
+            {
+                @Body
+            }
         </article>
     </main>
 </div>
+
+@code {
+    private bool isLocked = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize theme
+        await ThemeService.InitializeAsync();
+        ThemeService.OnThemeChanged += StateHasChanged;
+
+        // Check if a PIN exists in secure storage
+        var storedPin = await SecureStorage.GetAsync("journal_pin");
+
+        if (!string.IsNullOrEmpty(storedPin))
+        {
+            // PIN exists, lock layout until user logs in
+            isLocked = true;
+
+            var currentUri = new Uri(Navigation.Uri);
+            if (!currentUri.AbsolutePath.Contains("login"))
+            {
+                // Redirect to login page
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        else
+        {
+            // No PIN set, layout unlocked
+            isLocked = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= StateHasChanged;
+    }
+}

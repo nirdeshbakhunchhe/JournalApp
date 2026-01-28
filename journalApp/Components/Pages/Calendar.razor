@@ -4,21 +4,21 @@
 @inject JournalService JournalService
 @inject NavigationManager Navigation
 
-<h3>Calendar View</h3>
+<h1>Calendar View</h1>
 
 <div style="max-width:900px; margin:0 auto;">
     <!-- Month/Year Selector -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding:16px; background:#f5f5f5; border-radius:8px;">
-        <button style="padding:8px 16px;" @onclick="PreviousMonth">
-            ← Previous
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding:16px; background:var(--sidebar-background); border-radius:8px;">
+        <button style="padding:10px 16px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500;" @onclick="PreviousMonth">
+            Previous
         </button>
 
-        <h4 style="margin:0;">
+        <h2 style="margin:0; color:var(--heading-color);">
             @currentDate.ToString("MMMM yyyy")
-        </h4>
+        </h2>
 
-        <button style="padding:8px 16px;" @onclick="NextMonth">
-            Next →
+        <button style="padding:10px 16px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500;" @onclick="NextMonth">
+            Next
         </button>
     </div>
 
@@ -27,7 +27,7 @@
         <!-- Day Headers -->
         @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
         {
-            <div style="text-align:center; font-weight:bold; padding:12px; background:#e3f2fd; border-radius:4px;">
+            <div style="text-align:center; font-weight:700; padding:12px; background:var(--primary-color); color:white; border-radius:4px;">
                 @day
             </div>
         }
@@ -35,13 +35,13 @@
         <!-- Empty cells before month starts -->
         @for (int i = 0; i < GetStartDayOfWeek(); i++)
         {
-            <div style="padding:12px; background:#fafafa; border-radius:4px; min-height:80px;"></div>
+            <div style="padding:12px; background:var(--sidebar-background); border-radius:4px; min-height:80px;"></div>
         }
 
         <!-- Days of month -->
         @for (int day = 1; day <= GetDaysInMonth(); day++)
         {
-            var currentDay = day; // Capture for lambda
+            var currentDay = day;
             var date = new DateOnly(currentDate.Year, currentDate.Month, currentDay);
             var hasEntry = entriesThisMonth.ContainsKey(date);
             var isToday = date == DateOnly.FromDateTime(DateTime.Now);
@@ -49,7 +49,7 @@
             <div style="@GetDayStyle(hasEntry, isToday)"
                  @onclick="() => NavigateToDate(date)">
 
-                <div style="font-size:1.1em; font-weight:bold; margin-bottom:4px;">
+                <div style="font-size:1.1em; font-weight:700; margin-bottom:4px; color:var(--heading-color);">
                     @currentDay
                 </div>
 
@@ -57,17 +57,17 @@
                 {
                     var entry = entriesThisMonth[date];
                     <div style="margin-top:8px;">
-                        <div style="font-size:0.85em; font-weight:500; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <div style="font-size:0.85em; font-weight:600; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-color);">
                             @entry.Title
                         </div>
-                        <div style="font-size:0.75em; background:rgba(255,255,255,0.7); padding:2px 6px; border-radius:8px; display:inline-block;">
+                        <div style="font-size:0.75em; background:var(--primary-color); color:white; padding:2px 6px; border-radius:8px; display:inline-block; font-weight:500;">
                             @entry.PrimaryMood
                         </div>
                     </div>
                 }
                 else if (date < DateOnly.FromDateTime(DateTime.Now))
                 {
-                    <div style="font-size:0.75em; color:#999; margin-top:8px;">
+                    <div style="font-size:0.75em; color:var(--text-secondary); margin-top:8px;">
                         No entry
                     </div>
                 }
@@ -76,24 +76,24 @@
     </div>
 
     <!-- Legend -->
-    <div style="display:flex; gap:20px; justify-content:center; padding:16px; background:#f9f9f9; border-radius:8px; font-size:0.9em;">
+    <div style="display:flex; gap:20px; justify-content:center; padding:16px; background:var(--sidebar-background); border-radius:8px; font-size:0.9em; flex-wrap:wrap;">
         <div style="display:flex; align-items:center; gap:8px;">
-            <div style="width:20px; height:20px; background:#4caf50; border-radius:4px;"></div>
-            <span>Has Entry</span>
+            <div style="width:20px; height:20px; background:var(--primary-color); border-radius:4px;"></div>
+            <span style="color:var(--text-color);">Has Entry</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <div style="width:20px; height:20px; background:#2196f3; border:2px solid #1976d2; border-radius:4px;"></div>
-            <span>Today</span>
+            <div style="width:20px; height:20px; background:var(--accent-color); border:2px solid var(--primary-color); border-radius:4px;"></div>
+            <span style="color:var(--text-color);">Today</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <div style="width:20px; height:20px; background:#fff; border:1px solid #ddd; border-radius:4px;"></div>
-            <span>No Entry</span>
+            <div style="width:20px; height:20px; background:var(--sidebar-background); border:2px solid var(--border-color); border-radius:4px;"></div>
+            <span style="color:var(--text-color);">No Entry</span>
         </div>
     </div>
 
     <!-- Quick Actions -->
     <div style="text-align:center; margin-top:24px;">
-        <button style="padding:12px 24px; font-size:1em;" @onclick='() => Navigation.NavigateTo("/today")'>
+        <button style="padding:12px 24px; font-size:1em; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;" @onclick='() => Navigation.NavigateTo("/today")'>
             Go to Today's Entry
         </button>
     </div>
@@ -178,23 +178,23 @@
 
     private string GetDayStyle(bool hasEntry, bool isToday)
     {
-        var baseStyle = "padding:12px; border-radius:8px; min-height:80px; cursor:pointer; transition:all 0.2s;";
+        var baseStyle = "padding:12px; border-radius:8px; min-height:80px; cursor:pointer; transition:all 0.2s; border: 2px solid var(--border-color);";
 
         if (isToday && hasEntry)
         {
-            return baseStyle + " background:#4caf50; color:white; border:3px solid #2e7d32;";
+            return baseStyle + " background:var(--primary-color); color:white;";
         }
         else if (isToday)
         {
-            return baseStyle + " background:#e3f2fd; border:3px solid #1976d2;";
+            return baseStyle + " background:var(--accent-color); border:2px solid var(--primary-color); color:var(--heading-color);";
         }
         else if (hasEntry)
         {
-            return baseStyle + " background:#4caf50; color:white; box-shadow:0 2px 4px rgba(0,0,0,0.1);";
+            return baseStyle + " background:var(--primary-color); color:white;";
         }
         else
         {
-            return baseStyle + " background:white; border:1px solid #ddd;";
+            return baseStyle + " background:var(--sidebar-background); color:var(--text-color);";
         }
     }
 }

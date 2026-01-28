@@ -1,0 +1,112 @@
+﻿@page "/search"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<h1>Search & Filter Entries</h1>
+
+<div style="max-width:900px; margin:20px auto;">
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; background:var(--sidebar-background); padding:16px; border-radius:8px;">
+        <input placeholder="Search by title or content" style="flex:1; min-width:200px; padding:10px; border:2px solid var(--border-color); border-radius:6px; background:var(--background-color); color:var(--text-color); font-size:1em;" @bind="searchTerm" />
+
+        <select style="padding:10px; border:2px solid var(--border-color); border-radius:6px; background:var(--background-color); color:var(--text-color); font-size:1em;" @bind="selectedMood">
+            <option value="">All Moods</option>
+            @foreach (var mood in AllMoods)
+            {
+                <option value="@mood">@mood</option>
+            }
+        </select>
+
+        <select style="padding:10px; border:2px solid var(--border-color); border-radius:6px; background:var(--background-color); color:var(--text-color); font-size:1em;" @bind="selectedTag">
+            <option value="">All Tags</option>
+            @foreach (var tag in AllTags)
+            {
+                <option value="@tag">@tag</option>
+            }
+        </select>
+
+        <button style="padding:10px 20px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600;" @onclick="ApplyFilters">Search</button>
+    </div>
+
+    <div>
+        @if (loading)
+        {
+            <p style="color:var(--text-color);">Loading...</p>
+        }
+        else if (filteredEntries?.Any() != true)
+        {
+            <p style="color:var(--text-secondary); text-align:center; font-size:1.1em;">No entries found.</p>
+        }
+        else
+        {
+            @foreach (var entry in filteredEntries)
+            {
+                var editUrl = $"/edit/{entry.EntryDate:yyyy-MM-dd}";
+                <div style="border:2px solid var(--border-color); padding:16px; margin-bottom:12px; border-radius:8px; background:var(--sidebar-background);">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+                        <div>
+                            <div style="font-weight:600; color:var(--heading-color); font-size:1.1em;">@entry.Title</div>
+                            <div style="color:var(--text-secondary); font-size:0.85em; margin-top:4px;">@entry.EntryDate.ToString("MMMM dd, yyyy") | @entry.PrimaryMood</div>
+                        </div>
+                        <button style="padding:8px 16px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500;" @onclick="() => Navigation.NavigateTo(editUrl)">Edit</button>
+                    </div>
+
+                    @if (entry.Tags != null && entry.Tags.Count > 0)
+                    {
+                        <div style="margin-bottom:12px; color:var(--text-secondary); font-size:0.85em;">
+                            Tags: @string.Join(", ", entry.Tags.Select(t => t.Name))
+                        </div>
+                    }
+
+                    <div style="color:var(--text-color); line-height:1.6; margin-top:8px;">
+                        @((MarkupString)MarkdownToHtml(entry.Content))
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private string searchTerm = "";
+    private string selectedMood = "";
+    private string selectedTag = "";
+    private bool loading = true;
+
+    private List<JournalEntry> allEntries = new();
+    private List<JournalEntry> filteredEntries = new();
+    private List<string> AllTags = new();
+
+    private readonly string[] AllMoods = {
+        "Happy","Excited","Relaxed","Grateful","Confident",
+        "Calm","Thoughtful","Curious","Nostalgic","Bored",
+        "Sad","Angry","Stressed","Lonely","Anxious"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        allEntries = await JournalService.GetRecentAsync(1, 100); // latest 100 entries
+        AllTags = allEntries.SelectMany(e => e.Tags).Select(t => t.Name).Distinct().ToList();
+        filteredEntries = allEntries;
+        loading = false;
+    }
+
+    private void ApplyFilters()
+    {
+        filteredEntries = allEntries
+            .Where(e =>
+                (string.IsNullOrWhiteSpace(searchTerm) || e.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || e.Content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrWhiteSpace(selectedMood) || e.PrimaryMood == selectedMood) &&
+                (string.IsNullOrWhiteSpace(selectedTag) || e.Tags.Any(t => t.Name == selectedTag))
+            ).ToList();
+    }
+
+    private static string MarkdownToHtml(string md)
+    {
+        if (string.IsNullOrWhiteSpace(md)) return "";
+        var pipeline = new Markdig.MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        return Markdig.Markdown.ToHtml(md, pipeline);
+    }
+}

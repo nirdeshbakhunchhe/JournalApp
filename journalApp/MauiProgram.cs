@@ -1,4 +1,5 @@
-﻿using JournalApp;
+﻿
+using JournalApp;
 using JournalApp.Data;
 using JournalApp.Services;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,14 @@ public static class MauiProgram
             options.UseSqlite($"Data Source={dbPath}"));
 
         // ✅ Register service layer
-        builder.Services.AddSingleton<JournalService>();
+        builder.Services.AddScoped<JournalService>();
+
+        builder.Services.AddSingleton<AuthService>();
+
+        builder.Services.AddScoped<PdfExportService>();
+
+        // ✅ Register ThemeService
+        builder.Services.AddScoped<ThemeService>();
 
         // ✅ Build the app FIRST
         var app = builder.Build();

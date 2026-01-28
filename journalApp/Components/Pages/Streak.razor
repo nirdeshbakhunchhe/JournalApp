@@ -1,0 +1,116 @@
+﻿@page "/streaks"
+@using JournalApp.Models
+@using JournalApp.Services
+@inject JournalService JournalService
+
+<h1>Streak Tracking</h1>
+
+@if (loading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:20px;">
+        <!-- Current Streak Card -->
+        <div style="flex:1; min-width:200px; padding:24px; border:2px solid var(--primary-color); border-radius:8px; background:var(--sidebar-background);">
+            <h3 style="margin:0 0 16px 0; color:var(--heading-color);">Current Streak</h3>
+            <p style="font-size:2.5em; font-weight:700; color:var(--primary-color); margin:0;">@currentStreak days</p>
+        </div>
+
+        <!-- Longest Streak Card -->
+        <div style="flex:1; min-width:200px; padding:24px; border:2px solid var(--primary-color); border-radius:8px; background:var(--sidebar-background);">
+            <h3 style="margin:0 0 16px 0; color:var(--heading-color);">Longest Streak</h3>
+            <p style="font-size:2.5em; font-weight:700; color:var(--primary-color); margin:0;">@longestStreak days</p>
+        </div>
+
+        <!-- Missed Days Card -->
+        <div style="flex:1; min-width:200px; padding:24px; border:2px solid var(--border-color); border-radius:8px; background:var(--sidebar-background);">
+            <h3 style="margin:0 0 16px 0; color:var(--heading-color);">Missed Days</h3>
+            @if (missedDays.Any())
+            {
+                <ul style="margin:0; padding-left:20px; color:var(--text-color);">
+                    @foreach (var d in missedDays.Take(5))
+                    {
+                        <li style="margin-bottom:6px; color:var(--text-color);">@d.ToString("yyyy-MM-dd")</li>
+                    }
+                    @if (missedDays.Count > 5)
+                    {
+                        <li style="color:var(--text-secondary); font-style:italic;">... and @(missedDays.Count - 5) more</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p style="margin:0; font-size:1.2em; font-weight:600; color:var(--primary-color);">None 🎉</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+    private List<JournalEntry> allEntries = new();
+    private int currentStreak = 0;
+    private int longestStreak = 0;
+    private List<DateOnly> missedDays = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+
+        allEntries = await JournalService.GetRecentAsync(1, 1000); // fetch last 1000 entries
+        var datesWithEntries = allEntries.Select(e => e.EntryDate).OrderBy(d => d).ToList();
+
+        if (!datesWithEntries.Any())
+        {
+            currentStreak = 0;
+            longestStreak = 0;
+            missedDays = new List<DateOnly>();
+        }
+        else
+        {
+            CalculateStreaks(datesWithEntries);
+        }
+
+        loading = false;
+    }
+
+    private void CalculateStreaks(List<DateOnly> sortedDates)
+    {
+        DateOnly prevDate = sortedDates[0];
+        int tempStreak = 1;
+        longestStreak = 1;
+        missedDays = new List<DateOnly>();
+
+        // Find missed days between first and last entry
+        for (var date = sortedDates[0]; date <= DateOnly.FromDateTime(DateTime.Now); date = date.AddDays(1))
+        {
+            if (!sortedDates.Contains(date))
+                missedDays.Add(date);
+        }
+
+        // Calculate longest streak
+        for (int i = 1; i < sortedDates.Count; i++)
+        {
+            if (sortedDates[i] == prevDate.AddDays(1))
+            {
+                tempStreak++;
+                if (tempStreak > longestStreak)
+                    longestStreak = tempStreak;
+            }
+            else
+            {
+                tempStreak = 1;
+            }
+            prevDate = sortedDates[i];
+        }
+
+        // Calculate current streak up to today
+        currentStreak = 0;
+        for (var date = DateOnly.FromDateTime(DateTime.Now); sortedDates.Contains(date) && currentStreak < 1000; date = date.AddDays(-1))
+        {
+            currentStreak++;
+        }
+    }
+}

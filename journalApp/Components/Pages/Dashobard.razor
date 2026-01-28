@@ -1,0 +1,98 @@
+﻿@page "/dashboard"
+@using JournalApp.Services
+@inject JournalService JournalService
+
+<h1>Dashboard & Analytics</h1>
+
+@if (isLoading)
+{
+    <p style="color:var(--text-color);">Loading analytics...</p>
+}
+else
+{
+    <div style="max-width:1000px; margin:20px auto;">
+        <!-- Mood Distribution -->
+        <h2 style="margin-top:30px; margin-bottom:20px; color:var(--heading-color);">Mood Distribution</h2>
+        <div style="background:var(--background-color); border:2px solid var(--border-color); border-radius:8px; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; color:var(--text-color);">
+                <thead>
+                    <tr style="background:var(--primary-color); color:white;">
+                        <th style="padding:12px; text-align:left; font-weight:600;">Mood</th>
+                        <th style="padding:12px; text-align:right; font-weight:600;">Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mood in MoodDistribution)
+                    {
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:12px;">@mood.Key</td>
+                            <td style="padding:12px; text-align:right; font-weight:600; color:var(--primary-color);">@mood.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Most Used Tags -->
+        <h2 style="margin-top:30px; margin-bottom:20px; color:var(--heading-color);">Most Used Tags</h2>
+        <div style="background:var(--background-color); border:2px solid var(--border-color); border-radius:8px; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; color:var(--text-color);">
+                <thead>
+                    <tr style="background:var(--primary-color); color:white;">
+                        <th style="padding:12px; text-align:left; font-weight:600;">Tag</th>
+                        <th style="padding:12px; text-align:right; font-weight:600;">Usage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tag in TagUsage)
+                    {
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:12px;">@tag.Key</td>
+                            <td style="padding:12px; text-align:right; font-weight:600; color:var(--primary-color);">@tag.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Word Count Trends -->
+        <h2 style="margin-top:30px; margin-bottom:20px; color:var(--heading-color);">Word Count Trends</h2>
+        <div style="background:var(--background-color); border:2px solid var(--border-color); border-radius:8px; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; color:var(--text-color);">
+                <thead>
+                    <tr style="background:var(--primary-color); color:white;">
+                        <th style="padding:12px; text-align:left; font-weight:600;">Date</th>
+                        <th style="padding:12px; text-align:right; font-weight:600;">Word Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var trend in WordCountTrends.OrderBy(t => t.Key))
+                    {
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <td style="padding:12px;">@trend.Key.ToShortDateString()</td>
+                            <td style="padding:12px; text-align:right; font-weight:600; color:var(--primary-color);">@trend.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+
+    private Dictionary<string, int> MoodDistribution = new Dictionary<string, int>();
+    private Dictionary<string, int> TagUsage = new Dictionary<string, int>();
+    private Dictionary<DateOnly, int> WordCountTrends = new Dictionary<DateOnly, int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load all analytics with null-safety
+        MoodDistribution = await JournalService.GetMoodDistributionAsync() ?? new Dictionary<string, int>();
+        TagUsage = await JournalService.GetTagUsageAsync() ?? new Dictionary<string, int>();
+        WordCountTrends = await JournalService.GetWordCountTrendsAsync() ?? new Dictionary<DateOnly, int>();
+
+        isLoading = false;
+    }
+}
